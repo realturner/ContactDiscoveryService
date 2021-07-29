@@ -39,10 +39,6 @@ public class EnclaveConfiguration {
 
   @JsonProperty
   @NotEmpty
-  private String certificate;
-
-  @JsonProperty
-  @NotEmpty
   private String key;
 
   @JsonProperty
@@ -72,10 +68,6 @@ public class EnclaveConfiguration {
     return targetBatchSize;
   }
 
-  public String getCertificate() {
-    return certificate;
-  }
-
   public List<EnclaveInstanceConfiguration> getInstances() {
     return instances;
   }
@@ -90,9 +82,5 @@ public class EnclaveConfiguration {
 
   public boolean getAcceptGroupOutOfDate() {
     return acceptGroupOutOfDate;
-  }
-
-  public void setCertificate(String certificate) {
-    this.certificate = certificate;
   }
 }

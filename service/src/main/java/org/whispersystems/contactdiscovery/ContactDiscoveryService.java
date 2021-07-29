@@ -149,7 +149,6 @@ public class ContactDiscoveryService extends Application<ContactDiscoveryConfigu
     PeerServiceAuthenticator   peerServiceAuthenticator   = new PeerServiceAuthenticator(configuration.getDirectoryConfiguration().getPeerAuthenticationToken());
 
     IntelClient intelClient = new IntelClient(configuration.getEnclaveConfiguration().getIasHost(),
-                                              configuration.getEnclaveConfiguration().getCertificate(),
                                               configuration.getEnclaveConfiguration().getKey(),
                                               configuration.getEnclaveConfiguration().getAcceptGroupOutOfDate());
 

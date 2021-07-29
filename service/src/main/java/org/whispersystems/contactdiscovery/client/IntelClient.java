@@ -69,20 +69,23 @@ public class IntelClient {
 
   private final Client  client;
   private final String  host;
+  private final String  apiKey;
   private final boolean acceptGroupOutOfDate;
 
-  public IntelClient(String host, String clientCertificate, String clientKey, boolean acceptGroupOutOfDate)
-      throws CertificateException, KeyStoreException, IOException
+  public IntelClient(String host, String apiKey, boolean acceptGroupOutOfDate)
   {
-    this.client               = initializeClient(clientCertificate, clientKey);
+    this.client               = initializeClient();
     this.host                 = host;
+    this.apiKey               = apiKey;
     this.acceptGroupOutOfDate = acceptGroupOutOfDate;
+    // TODO: add header "Ocp-Apim-Subscription-Key"
   }
 
   public byte[] getSignatureRevocationList(long gid) {
     String encodedRevocationList = client.target(host)
-                                         .path(String.format("/attestation/sgx/v3/sigrl/%08x", gid))
+                                         .path(String.format("/attestation/v3/sigrl/%08x", gid))
                                          .request()
+                                         .header("Ocp-Apim-Subscription-Key", this.apiKey)
                                          .get(String.class);
 
     if (encodedRevocationList != null && encodedRevocationList.trim().length() != 0) {
@@ -95,8 +98,9 @@ public class IntelClient {
   public QuoteSignatureResponse getQuoteSignature(byte[] quote) throws QuoteVerificationException, StaleRevocationListException {
     try {
       Response response = client.target(host)
-                                .path("/attestation/sgx/v3/report")
+                                .path("/attestation/v3/report")
                                 .request(MediaType.APPLICATION_JSON)
+                                .header("Ocp-Apim-Subscription-Key", this.apiKey)
                                 .post(Entity.json(new QuoteSignatureRequest(quote)));
 
       String responseBodyString = response.readEntity(String.class);
@@ -177,53 +181,9 @@ public class IntelClient {
     return platformInfoBlob;
   }
 
-  private static Client initializeClient(String clientCertificate, String clientKey)
-      throws CertificateException, KeyStoreException, IOException
+  private static Client initializeClient()
   {
-    byte[] synthesizedKeyStore = initializeKeyStore(clientCertificate, clientKey);
-    SSLContext sslContext = SslConfigurator.newInstance()
-                                           .keyStoreBytes(synthesizedKeyStore)
-                                           .keyStorePassword(SYNTHESIZED_KEY_STORE_PASSWORD)
-                                           .keyPassword(SYNTHESIZED_KEY_STORE_PASSWORD)
-                                           .securityProtocol("TLSv1.2")
-                                           .createSSLContext();
-
-    return ClientBuilder.newBuilder()
-                        .sslContext(sslContext)
-                        .build();
-  }
-
-  private static byte[] initializeKeyStore(String pemCertificate, String pemKey)
-      throws IOException, KeyStoreException, CertificateException
-  {
-    PEMParser             certificateReader = new PEMParser(new InputStreamReader(new ByteArrayInputStream(pemCertificate.getBytes())));
-    X509CertificateHolder certificateHolder = (X509CertificateHolder) certificateReader.readObject();
-    if (certificateHolder == null) {
-      throw new CertificateException("couldn't read pem certificate");
-    }
-
-    X509Certificate       certificate       = new JcaX509CertificateConverter().getCertificate(certificateHolder);
-    Certificate[]         certificateChain  = {certificate};
-
-    PEMParser  keyReader  = new PEMParser(new InputStreamReader(new ByteArrayInputStream(pemKey.getBytes())));
-    PEMKeyPair pemKeyPair = (PEMKeyPair) keyReader.readObject();
-    if (pemKeyPair == null) {
-      throw new KeyStoreException("couldn't read pem private key");
-    }
-
-    KeyPair               keyPair  = new JcaPEMKeyConverter().getKeyPair(pemKeyPair);
-    KeyStore              keyStore = KeyStore.getInstance("pkcs12");
-    ByteArrayOutputStream baos     = new ByteArrayOutputStream();
-    try {
-      keyStore.load(null);
-      keyStore.setEntry("intel",
-                        new KeyStore.PrivateKeyEntry(keyPair.getPrivate(), certificateChain),
-                        new KeyStore.PasswordProtection(SYNTHESIZED_KEY_STORE_PASSWORD.toCharArray()));
-      keyStore.store(baos, SYNTHESIZED_KEY_STORE_PASSWORD.toCharArray());
-      return baos.toByteArray();
-    } catch (NoSuchAlgorithmException e) {
-      throw new AssertionError(e);
-    }
+    return ClientBuilder.newBuilder().build();
   }
 
 }
